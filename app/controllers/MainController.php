@@ -2,10 +2,7 @@
 
 namespace app\controllers;
 
-use app\models\Category;
-use app\models\News;
-use app\models\Tag;
-
+use app\models\Users;
 /**
  * Description of Main
  *
@@ -16,112 +13,67 @@ class MainController extends AppController{
     
     public function indexAction()
     {
-        /*$model = new Main;
-//        $res = $model->query("CREATE TABLE posts SELECT * FROM yii2_mini.post");
-        $posts = $model->findAll();
-        $posts2 = $model->findAll();
-//        $post = $model->findOne(2);
-//        $data = $model->findBySql("SELECT * FROM posts ORDER BY id DESC LIMIT 2");
-//        $data = $model->findBySql("SELECT * FROM {$model->table} WHERE title LIKE ?", ['%то%']);
-        $data = $model->findLike('Тест', 'name');
-        debug($data);
-        $title = 'PAGE TITLE';
-        $this->set(compact('title', 'posts'));*/
+        $user = new Users;
 
-        
-        if (isset($_POST['is_ajax'])) {
+        if( isset( $_POST['my_file_upload'] ) ){  
 
-            $tags = new Tag;
+            if ( isset($_FILES)) {
+            
+                if ($_FILES[0]["error"] > 0) {
+                    echo "Error";
 
-            $listTag = $tags->findLike($_POST['input'], 'tag_name');
-
-            $parseTag = json_encode($listTag);
-            header("Content-type: application/json");
-            print($parseTag);
-            exit();
-        
-        }
-        else
-        {
-
-            $category = new Category;
-            $articles = new News;
-            $categories = $category->findAll();
-
-            for ($i=1; $i < 6; $i++) { 
-                $news[$i] = $articles->findBySql("SELECT news.tag, news.id AS article_id, news.name AS title, news.date_create, news.image, news.hits, user.id AS user_id, user.name, category.id AS category_id, category.name AS category, news.id FROM `news` LEFT JOIN user ON news.user_id = user.id LEFT JOIN category ON news.category_id = category.id WHERE category_id = $i ORDER BY date_create DESC LIMIT 5");
-            }
-
-            for ($i=0; $i < count($news); $i++) { 
-                for ($j=0; $j < count(@$news[$i]); $j++) { 
-                    if ($news[$i][$j]['tag'] != '') {
-                        if (strpos($news[$i][$j]['tag'], ',')) {
-                            @$news[$i][$j]['tag'] = explode(',', $news[$i][$j]['tag']);
-                        }
+                } else {     
+                    if (file_exists("upload/" . $_FILES[0]["name"])) {
+                        echo $_FILES[0]["name"] . " already exists. ";
+                    }else {
+                    
+                        $storagename = "uploaded_file.txt";
+                        move_uploaded_file($_FILES[0]["tmp_name"], "upload/" . $storagename);
+                        echo "Stored in: " . "upload/" . $_FILES[0]["name"] . "<br />";
                     }
+                    $importDataArr = [];
+                    $real = [];
+                    $storagename = "uploaded_file.txt";
+                    
+                 
+                    $csvData = file_get_contents("upload/" . $storagename);
+
+                    $lines = explode(PHP_EOL, $csvData);
+                    
+                    $array = array();
+                    foreach ($lines as $line) {
+
+                        $array[] = str_getcsv($line);
+
+                    }
+                 
+                    for ($i=0; $i < count($array); $i++) {            //TODO array_map()
+                        for ($j=0; $j < count($array[$i]); $j++) { 
+
+                              $array[$i][$j] = ('\''.$array[$i][$j].'\'');
+                         } 
+                    }
+                    
+                    for ($i=1; $i < count($array) - 1; $i++) {
+                        array_push($importDataArr, '(' . implode(',', $array[$i]) . ')');
+                    }
+
+                    $importData = implode(',', $importDataArr);
+                    
+                    try {
+                         $query = $user->insert('`UID`, `Name`, `Age`, `Email`, `Phone`, `Gender`', $importData);
+                    } catch (Exception $e) {
+                        die('aaaaaa');
+                    }                
                 }
+            } else {
+                echo "No file selected <br />";
             }
 
-
-
-            $category = new Category;
-
-            $categories = $category->findAll();
-
-            $last = $articles->findBySql("SELECT * FROM news ORDER BY id DESC LIMIT 3");
-
-            $title = 'Главная страница';
-            $this->set(compact('news', 'title', 'categories', 'r', 'last'));
         }
 
-
+        if(isset($_POST['delete'])){ 
+            $user->delete();
+        }
     }
-
-    public function tagAction ()
-    {   
-        $tags = new Tag;
-        $news = new News;
-
-        if (empty($_GET['tag'])) {
-            $result = $tags->findAll();
-            $check = 'Теги которые есть: ';
-            $path = '/main/tag?tag=';
-            $name = 'tag_name';
-            $val = 'tag_name';
-
-        }
-        else
-        {
-            $result = $news->findLike($_GET['tag'], 'tag');
-            $check = "по тегу <b>". $_GET['tag'] . "</b> есть такие теги: " ;
-            $path = '/news/index?id=';
-            $val = 'id';
-            $name = 'name';
-        }
-
-        isset($_GET['tag']) ? $title = "тег - " . $_GET['tag'] : $title = "теги";
-    	$this->set(compact('result', 'check', 'title', 'name', 'path', 'val'));
-
-    }
-
-    public function searchAction() {
-        $category = new Category;
-        $news = new News;
-
-        if ($_POST['submit_filter']) {
-            $sel_1 = $_POST['sel_1'];
-            $sel_2 = $_POST['sel_2'];
-            $date_1 = $_POST['calendar_1'];
-            $date_2 = $_POST['calendar_2'];
-            // $page = $_GET['page'];
-
-            //$r = $news->findBySql("SELECT news.name, news.date_create FROM category left join news  ON category.name = '$sel_1' OR category.name = '$sel_2'");
-            $r = $news->findBySql("SELECT news.name, news.date_create FROM category left join news  ON category.id = news.category_id WHERE category.name = '$sel_1' OR category.name = '$sel_2' OR category.name = 'sel_2' AND category.name = 'sel_1' AND news.date_create BETWEEN '$date_1' AND '$date_2'");
-        }
-        $this->set(compact('r'));
-
-    }
-    
 }
-
-?>

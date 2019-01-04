@@ -21,9 +21,20 @@ abstract class Model {
     public function query($sql){
         return $this->pdo->execute($sql);
     }
+
+    public function delete(){
+        $sql = "DELETE FROM `{$this->table}`";
+        return $this->pdo->execute($sql);
+    }
+
+    public function insert($column, $val, $other = ''){
+        $col = $column;
+        print_r($sql = "INSERT INTO `{$this->table}` ($col) VALUES".$val."ON DUPLICATE KEY UPDATE `Name`=VALUES(`Name`), `Age`=VALUES(`Age`), `Email`=VALUES(`Email`), `Phone`=VALUES(`Phone`), `Gender`=VALUES(`Gender`) ");
+        return $this->pdo->execute($sql);
+    }
     
     public function findAll(){
-        $sql = "SELECT * FROM {$this->table}";
+        $sql = "SELECT * FROM `{$this->table}`";
         return $this->pdo->query($sql);
     }
     
